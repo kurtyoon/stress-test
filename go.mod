@@ -1,3 +1,3 @@
-module stress_test
+module stress-test
 
 go 1.23.5

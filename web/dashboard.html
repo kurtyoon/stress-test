@@ -1,0 +1,196 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Load Test Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      .metric {
+        text-align: center;
+        padding: 20px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .metric h3 {
+        margin: 0;
+        color: #666;
+      }
+      .metric p {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 10px 0;
+        color: #333;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f8f9fa;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>HTTP Load Test Dashboard</h1>
+
+      <div class="grid">
+        <div class="metric">
+          <h3>Total Requests</h3>
+          <p id="totalRequests">-</p>
+        </div>
+        <div class="metric">
+          <h3>Success Rate</h3>
+          <p id="successRate">-</p>
+        </div>
+        <div class="metric">
+          <h3>Average Latency</h3>
+          <p id="avgLatency">-</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Response Time Trend</h2>
+        <div id="latencyChart"></div>
+      </div>
+
+      <div class="card">
+        <h2>Status Code Distribution</h2>
+        <div id="statusChart"></div>
+      </div>
+
+      <div class="card">
+        <h2>Recent Test Results</h2>
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Total Requests</th>
+              <th>Success</th>
+              <th>Errors</th>
+              <th>Avg Latency</th>
+              <th>Duration</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      function updateDashboard() {
+        fetch("/results")
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.length === 0) return;
+
+            // Update metrics
+            const latest = data[data.length - 1];
+            document.getElementById("totalRequests").textContent =
+              latest.totalRequests;
+            document.getElementById("successRate").textContent =
+              ((latest.successCount / latest.totalRequests) * 100).toFixed(1) +
+              "%";
+            document.getElementById("avgLatency").textContent =
+              (latest.averageLatency / 1000000).toFixed(2) + "ms";
+
+            // Update latency chart
+            const timestamps = data.map((r) => new Date(r.timestamp));
+            const latencies = data.map((r) => r.averageLatency / 1000000);
+
+            Plotly.newPlot(
+              "latencyChart",
+              [
+                {
+                  x: timestamps,
+                  y: latencies,
+                  type: "scatter",
+                  mode: "lines+markers",
+                  name: "Average Latency (ms)",
+                },
+              ],
+              {
+                title: "Response Time Trend",
+                xaxis: { title: "Time" },
+                yaxis: { title: "Latency (ms)" },
+              }
+            );
+
+            // Update status code chart
+            const statusCounts = latest.statusCounts;
+            const statuses = Object.keys(statusCounts);
+            const counts = Object.values(statusCounts);
+
+            Plotly.newPlot(
+              "statusChart",
+              [
+                {
+                  x: statuses,
+                  y: counts,
+                  type: "bar",
+                  name: "Status Codes",
+                },
+              ],
+              {
+                title: "HTTP Status Code Distribution",
+                xaxis: { title: "Status Code" },
+                yaxis: { title: "Count" },
+              }
+            );
+
+            // Update table
+            const tbody = document.querySelector("#resultsTable tbody");
+            tbody.innerHTML = "";
+            data
+              .slice(-10)
+              .reverse()
+              .forEach((result) => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = new Date(
+                  result.timestamp
+                ).toLocaleString();
+                row.insertCell(1).textContent = result.totalRequests;
+                row.insertCell(2).textContent = result.successCount;
+                row.insertCell(3).textContent = result.errorCount;
+                row.insertCell(4).textContent =
+                  (result.averageLatency / 1000000).toFixed(2) + "ms";
+                row.insertCell(5).textContent =
+                  (result.duration / 1000000).toFixed(2) + "ms";
+              });
+          });
+      }
+
+      // Update every 1 second
+      setInterval(updateDashboard, 1000);
+      updateDashboard();
+    </script>
+  </body>
+</html>
