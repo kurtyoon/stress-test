@@ -59,6 +59,20 @@ make run URL=https://example.com RPS=10 DURATION=5
 make install
 ```
 
+## Docker Support
+
+### Build Docker Image
+
+```bash
+docker build -t stress-test .
+```
+
+### Run with Docker
+
+```bash
+docker run -p 8080:8080 stress-test -url https://example.com -rps 10 -duration 5
+```
+
 ## Dashboard
 
 Test results can be monitored in real-time through the web dashboard:
